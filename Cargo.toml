@@ -1,0 +1,6 @@
+[package]
+name = "colored-pixels"
+version = "0.1.0"
+authors = ["pnlybubbles <pnlybubbles@gmail.com>"]
+
+[dependencies]
