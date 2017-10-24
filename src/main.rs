@@ -20,8 +20,12 @@ fn main() {
   image.save_ppm(&Path::new("img.ppm"), |pixel| {
     let mut color = [0u8; 3];
     for (i, x) in color.iter_mut().enumerate() {
-      *x = (pixel[i].max(0.0).min(1.0) * 255.0) as u8
+      *x = (clamp(pixel[i]) * 255.0) as u8
     }
     color
   }).unwrap();
+}
+
+fn clamp(x: f64) -> f64 {
+  x.max(0.0).min(1.0)
 }
