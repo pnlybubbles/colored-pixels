@@ -21,7 +21,7 @@ impl<T: Copy> Image<T> {
   pub fn each_pixel_mut<F: Fn(&mut T, usize, usize)>(&mut self, f: F) {
     for (y, row) in self.data.iter_mut().enumerate() {
       for (x, pixel) in row.iter_mut().enumerate() {
-        f(pixel, x, y)
+        f(pixel, x, y);
       }
     }
   }
@@ -37,7 +37,7 @@ impl<T: Copy> Image<T> {
         let c = f(self.data[y][x]);
         file.write_all(
           format!("{} {} {}\n", c[0], c[1], c[2]).as_bytes(),
-        )?
+        )?;
       }
     }
     Ok(())

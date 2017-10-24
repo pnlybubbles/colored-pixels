@@ -42,14 +42,14 @@ fn main() {
     *pixel = match intersection {
       None => Vector::new(0.0, 0.0, 0.0),
       Some(i) => i.normal / 2.0 + Vector::new(0.5, 0.5, 0.5),
-    }
+    };
   });
   // 画像を保存
   image
     .save_ppm(&Path::new("img.ppm"), |pixel| {
       [to_color(pixel.x), to_color(pixel.y), to_color(pixel.z)]
     })
-    .unwrap()
+    .unwrap();
 }
 
 fn to_color(x: f64) -> u8 {
