@@ -1,7 +1,11 @@
 use std::ops::{Neg, Add, Sub, Mul, Div};
 
 #[derive(Debug, Clone, Copy)]
-pub struct Vector { x: f64, y: f64, z: f64 }
+pub struct Vector {
+  pub x: f64,
+  pub y: f64,
+  pub z: f64,
+}
 
 impl Vector {
   pub fn new(x: f64, y: f64, z: f64) -> Vector {
@@ -9,7 +13,7 @@ impl Vector {
   }
 }
 
-pub trait Dot : Sized + Copy + Div<f64, Output = Self> {
+pub trait Dot: Sized + Copy + Div<f64, Output = Self> {
   fn dot(self, Self) -> f64;
 
   fn sqr_norm(self) -> f64 {

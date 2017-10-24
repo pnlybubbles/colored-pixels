@@ -28,11 +28,16 @@ impl<T: Copy> Image<T> {
 
   pub fn save_ppm<F: Fn(T) -> [u8; 3]>(&self, path: &Path, f: F) -> io::Result<()> {
     let mut file = File::create(&path)?;
-    file.write_all(format!("P3\n{} {}\n{}\n", self.width, self.height, 255).as_bytes())?;
+    file.write_all(
+      format!("P3\n{} {}\n{}\n", self.width, self.height, 255)
+        .as_bytes(),
+    )?;
     for y in 0..self.height {
       for x in 0..self.width {
         let c = f(self.data[y][x]);
-        file.write_all(format!("{} {} {}\n", c[0], c[1], c[2]).as_bytes())?;
+        file.write_all(
+          format!("{} {} {}\n", c[0], c[1], c[2]).as_bytes(),
+        )?
       }
     }
     Ok(())
