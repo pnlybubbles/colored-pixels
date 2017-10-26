@@ -18,7 +18,7 @@ impl<T: Copy> Image<T> {
     }
   }
 
-  pub fn each_pixel_mut<F: Fn(&mut T, usize, usize)>(&mut self, f: F) {
+  pub fn each_pixel_mut<F: FnMut(&mut T, usize, usize)>(&mut self, mut f: F) {
     for (y, row) in self.data.iter_mut().enumerate() {
       for (x, pixel) in row.iter_mut().enumerate() {
         f(pixel, x, y);
@@ -26,7 +26,10 @@ impl<T: Copy> Image<T> {
     }
   }
 
-  pub fn save_ppm<F: Fn(T) -> [u8; 3]>(&self, path: &Path, f: F) -> io::Result<()> {
+  pub fn save_ppm<F>(&self, path: &Path, f: F) -> io::Result<()>
+  where
+    F: Fn(T) -> [u8; 3],
+  {
     let mut file = File::create(&path)?;
     file.write_all(
       format!("P3\n{} {}\n{}\n", self.width, self.height, 255)

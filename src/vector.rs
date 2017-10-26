@@ -89,6 +89,14 @@ impl Mul<Vector> for f64 {
   }
 }
 
+impl Mul for Vector {
+  type Output = Vector;
+
+  fn mul(self, rhs: Vector) -> Vector {
+    Vector::new(self.x * rhs.x, self.y * rhs.y, self.z * rhs.z)
+  }
+}
+
 impl Div<f64> for Vector {
   type Output = Vector;
 
@@ -102,5 +110,13 @@ impl Div<Vector> for f64 {
 
   fn div(self, rhs: Vector) -> Vector {
     Vector::new(self / rhs.x, self / rhs.y, self / rhs.z)
+  }
+}
+
+impl Div for Vector {
+  type Output = Vector;
+
+  fn div(self, rhs: Vector) -> Vector {
+    Vector::new(self.x / rhs.x, self.y / rhs.y, self.z / rhs.z)
   }
 }
