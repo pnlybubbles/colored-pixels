@@ -1,5 +1,4 @@
 #![feature(box_syntax)]
-
 extern crate rand;
 
 mod vector;
@@ -8,8 +7,11 @@ mod image;
 use std::path::Path;
 use image::Image;
 use vector::*;
-use rand::{XorShiftRng, Rng};
+use rand::{Rng};
 use rand::distributions::{Range, IndependentSample};
+use std::thread;
+use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::Arc;
 
 const PI: f64 = 3.14159265358979323846264338327950288_f64;
 const EPS: f64 = 1e-2;
@@ -29,33 +31,44 @@ fn main() {
     color: Vector::new(0.8, 0.2, 0.2),
     emittance: Vector::new(0.0, 0.0, 0.0),
   };
-  let scene: Vec<Box<Shape>> = vec![
+  let scene: Arc<Vec<Box<Shape + Sync + Send>>> = Arc::new(vec![
     box Sphere { radius: 1.0, position: Vector::new(0.0, 0.0, 0.0), material: red.clone() },
     box Sphere { radius: 1e5, position: Vector::new(0.0, -1.0 - 1e5, 0.0), material: white.clone() },
-  ];
-  // 乱数ジェネレータの初期化
-  let mut rng = XorShiftRng::new_unseeded();
+  ]);
   // 各ピクセルで処理
-  image.each_pixel_mut(|pixel, x, y| {
-    print!("\r{:.0} / {:.0} ", y * WIDTH + x, WIDTH * HEIGHT);
-    let mut l = Vector::new(0.0, 0.0, 0.0);
-    for _ in 0..SPP - 1 {
-      // レイの生成
-      let ray = Ray {
-        origin: Vector::new(0.0, 0.0, 5.0),
-        direction: Vector::new(
-          x as f64 / WIDTH as f64 - 0.5,
-          -(y as f64 / HEIGHT as f64 - 0.5),
-          -1.0,
-        ).normalize(),
-      };
-      // 色付け
-      l = l + radiance(&scene, &ray, 0, &mut rng);
+  let (tx, rx): (Sender<(usize, usize, Vector)>, Receiver<(usize, usize, Vector)>) = channel();
+  for x in 0..WIDTH {
+    for y in 0..HEIGHT {
+      // マルチスレッドで処理
+      let tx = tx.clone();
+      let scene = scene.clone();
+      thread::spawn(move || {
+        // 乱数ジェネレータの初期化
+        let mut rng = rand::thread_rng();
+        let l = (0..SPP).fold(Vector::new(0.0, 0.0, 0.0), |sum, _| {
+          // レイの生成
+          let ray = Ray {
+            origin: Vector::new(0.0, 0.0, 5.0),
+            direction: Vector::new(
+              x as f64 / WIDTH as f64 - 0.5,
+              -(y as f64 / HEIGHT as f64 - 0.5),
+              -1.0,
+            ).normalize(),
+          };
+          // レイを飛ばす
+          sum + radiance(&scene, &ray, 0, &mut rng)
+        });
+        tx.send((x, y, l / SPP as f64)).unwrap()
+      });
     }
-    *pixel = l / SPP as f64;
-  });
+  }
+  // 各スレッドから受け取る
+  for _ in 0..HEIGHT * WIDTH {
+    let (x, y, l) = rx.recv().unwrap();
+    image.set(x, y, l)
+  }
   // 画像を保存
-  println!("saving...");
+  println!("\nsaving...");
   image
     .save_ppm(&Path::new("img.ppm"), |pixel| {
       [to_color(pixel.x), to_color(pixel.y), to_color(pixel.z)]
@@ -63,7 +76,8 @@ fn main() {
     .unwrap();
 }
 
-fn radiance<R: Rng>(scene: &Vec<Box<Shape>>, ray: &Ray, depth: usize, mut rng: R) -> Vector {
+fn radiance<R, T>(scene: &Vec<Box<T>>, ray: &Ray, depth: usize, mut rng: R) -> Vector
+    where R: Rng, T: Shape + ?Sized {
   // すべてのシーン内のオブジェクトと当たり判定
   let maybe_intersection = scene.iter().flat_map(|v| v.intersect(&ray)).min_by(
     |a, b| {
@@ -72,7 +86,7 @@ fn radiance<R: Rng>(scene: &Vec<Box<Shape>>, ray: &Ray, depth: usize, mut rng: R
   );
   match maybe_intersection {
     // 何にも当たらなかった場合
-    None => return Vector::new(1.0, 1.0, 1.0),
+    None => Vector::new(1.0, 1.0, 1.0),
     // 物体表面で相互作用
     Some(intersection) => {
       // 放射
@@ -111,7 +125,7 @@ fn radiance<R: Rng>(scene: &Vec<Box<Shape>>, ray: &Ray, depth: usize, mut rng: R
       };
       // 入射光
       let l_i = radiance(&scene, &new_ray, depth + 1, rng);
-      // 拡散反射面でのBRDF
+      // Lambertian拡散反射面でのBRDF
       let brdf = intersection.material.color / PI;
       // コサイン項
       let cos_term = new_direction.dot(normal);
@@ -162,18 +176,26 @@ struct Sphere {
 impl Shape for Sphere {
   fn intersect(&self, ray: &Ray) -> Option<Intersection> {
     let po = ray.origin - self.position;
-    let pod = po.dot(ray.direction);
-    let det = pod * pod - po.sqr_norm() + self.radius * self.radius;
+    let b = ray.direction.dot(po);
+    let c = po.sqr_norm() - self.radius * self.radius;
+    // 判別式 Δ = b^2 - a*c
+    let det = b * b - c;
+    // 交差しない
     if det < 0.0 {
       return None;
     }
-    let t1 = -pod - det.sqrt();
-    let t2 = -pod + det.sqrt();
+    let t1 = -b - det.sqrt();
+    let t2 = -b + det.sqrt();
+    // 出射方向と反対側で交差
     if t1 < EPS && t2 < EPS {
       return None;
     }
+    // 近い方が正の場合はそれを採用
+    // それ以外(球体内部からの交差の場合)は正の方を採用
     let distance = if t1 > EPS { t1 } else { t2 };
+    // r = o + t * d
     let position = ray.origin + ray.direction * distance;
+    // 法線は球体中心から外向き
     let normal = (position - self.position).normalize();
     Some(Intersection {
       position: position,

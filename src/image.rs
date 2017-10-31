@@ -18,12 +18,8 @@ impl<T: Copy> Image<T> {
     }
   }
 
-  pub fn each_pixel_mut<F: FnMut(&mut T, usize, usize)>(&mut self, mut f: F) {
-    for (y, row) in self.data.iter_mut().enumerate() {
-      for (x, pixel) in row.iter_mut().enumerate() {
-        f(pixel, x, y);
-      }
-    }
+  pub fn set(&mut self, x: usize, y: usize, v: T) {
+    self.data[y][x] = v;
   }
 
   pub fn save_ppm<F>(&self, path: &Path, f: F) -> io::Result<()>
