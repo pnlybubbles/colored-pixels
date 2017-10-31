@@ -1,5 +1,6 @@
 #![feature(box_syntax)]
 extern crate rand;
+extern crate threadpool;
 
 mod vector;
 mod image;
@@ -9,15 +10,16 @@ use image::Image;
 use vector::*;
 use rand::{Rng};
 use rand::distributions::{Range, IndependentSample};
-use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::sync::Arc;
+use threadpool::ThreadPool;
 
 const PI: f64 = 3.14159265358979323846264338327950288_f64;
 const EPS: f64 = 1e-2;
 const WIDTH: usize = 512;
 const HEIGHT: usize = 512;
 const SPP: usize = 100;
+const THREAD_COUNT: usize = 8;
 
 fn main() {
   // 画像データの初期化
@@ -36,13 +38,14 @@ fn main() {
     box Sphere { radius: 1e5, position: Vector::new(0.0, -1.0 - 1e5, 0.0), material: white.clone() },
   ]);
   // 各ピクセルで処理
+  let pool = ThreadPool::new(THREAD_COUNT);
   let (tx, rx): (Sender<(usize, usize, Vector)>, Receiver<(usize, usize, Vector)>) = channel();
   for x in 0..WIDTH {
     for y in 0..HEIGHT {
       // マルチスレッドで処理
       let tx = tx.clone();
       let scene = scene.clone();
-      thread::spawn(move || {
+      pool.execute(move || {
         // 乱数ジェネレータの初期化
         let mut rng = rand::thread_rng();
         let l = (0..SPP).fold(Vector::new(0.0, 0.0, 0.0), |sum, _| {
@@ -63,7 +66,8 @@ fn main() {
     }
   }
   // 各スレッドから受け取る
-  for _ in 0..HEIGHT * WIDTH {
+  for i in 0..HEIGHT * WIDTH {
+    print!("\rrendering... ({}/{})", i, HEIGHT * WIDTH);
     let (x, y, l) = rx.recv().unwrap();
     image.set(x, y, l)
   }

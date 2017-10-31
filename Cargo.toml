@@ -5,3 +5,4 @@ version = "0.1.0"
 
 [dependencies]
 rand = "0.3.17"
+threadpool = "1.7.1"
