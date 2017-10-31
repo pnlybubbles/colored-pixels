@@ -8,7 +8,7 @@ mod image;
 use std::path::Path;
 use image::Image;
 use vector::*;
-use rand::{Rng};
+use rand::Rng;
 use rand::distributions::{Range, IndependentSample};
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::sync::Arc;
@@ -34,8 +34,16 @@ fn main() {
     emittance: Vector::new(0.0, 0.0, 0.0),
   };
   let scene: Arc<Vec<Box<Shape + Sync + Send>>> = Arc::new(vec![
-    box Sphere { radius: 1.0, position: Vector::new(0.0, 0.0, 0.0), material: red.clone() },
-    box Sphere { radius: 1e5, position: Vector::new(0.0, -1.0 - 1e5, 0.0), material: white.clone() },
+    box Sphere {
+      radius: 1.0,
+      position: Vector::new(0.0, 0.0, 0.0),
+      material: red.clone(),
+    },
+    box Sphere {
+      radius: 1e5,
+      position: Vector::new(0.0, -1.0 - 1e5, 0.0),
+      material: white.clone(),
+    },
   ]);
   // 各ピクセルで処理
   let pool = ThreadPool::new(THREAD_COUNT);
@@ -81,7 +89,10 @@ fn main() {
 }
 
 fn radiance<R, T>(scene: &Vec<Box<T>>, ray: &Ray, depth: usize, mut rng: R) -> Vector
-    where R: Rng, T: Shape + ?Sized {
+where
+  R: Rng,
+  T: Shape + ?Sized,
+{
   // すべてのシーン内のオブジェクトと当たり判定
   let maybe_intersection = scene.iter().flat_map(|v| v.intersect(&ray)).min_by(
     |a, b| {
@@ -110,7 +121,8 @@ fn radiance<R, T>(scene: &Vec<Box<T>>, ray: &Ray, depth: usize, mut rng: R) -> V
         Vector::new(0.0, 1.0, 0.0)
       } else {
         Vector::new(1.0, 0.0, 0.0)
-      }.cross(normal).normalize();
+      }.cross(normal)
+        .normalize();
       let binormal = normal.cross(tangent);
       // 単位半球面上の1点サンプリング
       let dist = Range::new(0.0f64, 1.0);
@@ -119,9 +131,8 @@ fn radiance<R, T>(scene: &Vec<Box<T>>, ray: &Ray, depth: usize, mut rng: R) -> V
       let phi = 2.0 * PI * s1;
       let sin_theta = (1.0 - s2 * s2).sqrt();
       let cos_theta = s2;
-      let new_direction = tangent * (sin_theta * phi.cos())
-        + binormal * (sin_theta * phi.sin())
-        + normal * (cos_theta);
+      let new_direction = tangent * (sin_theta * phi.cos()) + binormal * (sin_theta * phi.sin()) +
+        normal * (cos_theta);
       // 新しいレイの生成
       let new_ray = Ray {
         origin: intersection.position,
@@ -137,7 +148,7 @@ fn radiance<R, T>(scene: &Vec<Box<T>>, ray: &Ray, depth: usize, mut rng: R) -> V
       let pdf = 1.0 / (2.0 * PI);
       // レンダリング方程式
       l_e + (brdf * l_i * cos_term / pdf)
-    },
+    }
   }
 }
 
