@@ -62,14 +62,14 @@ fn main() {
             origin: Vector::new(0.0, 0.0, 5.0),
             direction: Vector::new(
               x as f64 / WIDTH as f64 - 0.5,
-              -(y as f64 / HEIGHT as f64 - 0.5),
+              y as f64 / HEIGHT as f64 - 0.5,
               -1.0,
             ).normalize(),
           };
           // レイを飛ばす
           sum + radiance(&scene, &ray, 0, &mut rng)
         });
-        tx.send((x, y, l / SPP as f64)).unwrap()
+        tx.send((x, HEIGHT - y - 1, l / SPP as f64)).unwrap()
       });
     }
   }
