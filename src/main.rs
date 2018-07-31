@@ -14,8 +14,8 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 use std::sync::Arc;
 use threadpool::ThreadPool;
 
-const PI: f32 = 3.14159265358979323846264338327950288_f32;
-const EPS: f32 = 1e-2;
+const PI: f64 = 3.14159265358979323846264338327950288_f64;
+const EPS: f64 = 1e-5;
 const WIDTH: usize = 512;
 const HEIGHT: usize = 512;
 const SPP: usize = 100;
@@ -61,15 +61,15 @@ fn main() {
           let ray = Ray {
             origin: Vector::new(0.0, 0.0, 5.0),
             direction: Vector::new(
-              x as f32 / WIDTH as f32 - 0.5,
-              y as f32 / HEIGHT as f32 - 0.5,
+              x as f64 / WIDTH as f64 - 0.5,
+              y as f64 / HEIGHT as f64 - 0.5,
               -1.0,
             ).normalize(),
           };
           // レイを飛ばす
           sum + radiance(&scene, &ray, 0, &mut rng)
         });
-        tx.send((x, HEIGHT - y - 1, l / SPP as f32)).unwrap()
+        tx.send((x, HEIGHT - y - 1, l / SPP as f64)).unwrap()
       });
     }
   }
@@ -125,7 +125,7 @@ where
         .normalize();
       let binormal = normal.cross(tangent);
       // 単位半球面上の1点サンプリング
-      let dist = Range::new(0.0f32, 1.0);
+      let dist = Range::new(0.0f64, 1.0);
       let s1 = dist.ind_sample(&mut rng);
       let s2 = dist.ind_sample(&mut rng);
       let phi = 2.0 * PI * s1;
@@ -152,7 +152,7 @@ where
   }
 }
 
-fn to_color(x: f32) -> u8 {
+fn to_color(x: f64) -> u8 {
   (x.max(0.0).min(1.0) * 255.0) as u8
 }
 
@@ -166,7 +166,7 @@ struct Ray {
 struct Intersection {
   position: Vector,
   normal: Vector,
-  distance: f32,
+  distance: f64,
   material: Material,
 }
 
@@ -183,7 +183,7 @@ trait Shape {
 
 // 球
 struct Sphere {
-  radius: f32,
+  radius: f64,
   position: Vector,
   material: Material,
 }
@@ -191,18 +191,21 @@ struct Sphere {
 impl Shape for Sphere {
   fn intersect(&self, ray: &Ray) -> Option<Intersection> {
     let po = ray.origin - self.position;
+    // ray.direction.norm() == 1
+    let a = 1.0;
     let b = ray.direction.dot(po);
-    let c = po.sqr_norm() - self.radius * self.radius;
+    let c = po.sqr_norm() - (self.radius * self.radius);
     // 判別式 Δ = b^2 - a*c
-    let det = b * b - c;
+    let det = b * b - a * c;
     // 交差しない
     if det < 0.0 {
       return None;
     }
-    let t1 = -b - det.sqrt();
-    let t2 = -b + det.sqrt();
+    let sqrt_det = det.sqrt();
+    let t1 = -b - sqrt_det;
+    let t2 = -b + sqrt_det;
     // 出射方向と反対側で交差
-    if t2 < EPS {
+    if t1 < EPS && t2 < EPS {
       return None;
     }
     // 近い方が正の場合はそれを採用
